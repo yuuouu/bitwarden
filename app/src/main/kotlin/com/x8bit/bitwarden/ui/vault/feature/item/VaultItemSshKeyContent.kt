@@ -34,6 +34,7 @@ import com.x8bit.bitwarden.ui.vault.feature.item.component.CustomField
 import com.x8bit.bitwarden.ui.vault.feature.item.component.itemHeader
 import com.x8bit.bitwarden.ui.vault.feature.item.handlers.VaultCommonItemTypeHandlers
 import com.x8bit.bitwarden.ui.vault.feature.item.handlers.VaultSshKeyItemTypeHandlers
+import com.x8bit.bitwarden.ui.vault.feature.media.MediaPreviewState
 
 /**
  * The top level content UI state for the [VaultItemScreen] when viewing a SSH key cipher.
@@ -43,6 +44,7 @@ import com.x8bit.bitwarden.ui.vault.feature.item.handlers.VaultSshKeyItemTypeHan
 fun VaultItemSshKeyContent(
     commonState: VaultItemState.ViewState.Content.Common,
     sshKeyItemState: VaultItemState.ViewState.Content.ItemType.SshKey,
+    inlineMediaStates: Map<String, MediaPreviewState>,
     vaultSshKeyItemTypeHandlers: VaultSshKeyItemTypeHandlers,
     vaultCommonItemTypeHandlers: VaultCommonItemTypeHandlers,
     modifier: Modifier = Modifier,
@@ -225,17 +227,40 @@ fun VaultItemSshKeyContent(
                 items = attachments,
                 key = { index, _ -> "attachment_$index" },
             ) { index, attachmentItem ->
-                AttachmentItemContent(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .standardHorizontalMargin()
-                        .animateItem(),
-                    attachmentItem = attachmentItem,
-                    onAttachmentDownloadClick = vaultCommonItemTypeHandlers
-                        .onAttachmentDownloadClick,
-                    onUpgradeToPremiumClick = vaultCommonItemTypeHandlers.onUpgradeToPremiumClick,
-                    cardStyle = attachments.toListItemCardStyle(index = index),
-                )
+                if (attachmentItem.isImageType) {
+                    val currentPreviewState = inlineMediaStates[attachmentItem.id]
+                        ?: MediaPreviewState.Masked
+                    ImageAttachmentItemContent(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .standardHorizontalMargin()
+                            .animateItem(),
+                        attachmentItem = attachmentItem,
+                        previewState = currentPreviewState,
+                        onAttachmentPreviewClick = vaultCommonItemTypeHandlers
+                            .onAttachmentPreviewClick,
+                        onAttachmentImageViewClick = vaultCommonItemTypeHandlers
+                            .onAttachmentImageViewClick,
+                        onAttachmentDownloadClick = vaultCommonItemTypeHandlers
+                            .onAttachmentDownloadClick,
+                        onUpgradeToPremiumClick = vaultCommonItemTypeHandlers
+                            .onUpgradeToPremiumClick,
+                        cardStyle = attachments.toListItemCardStyle(index = index),
+                    )
+                } else {
+                    AttachmentItemContent(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .standardHorizontalMargin()
+                            .animateItem(),
+                        attachmentItem = attachmentItem,
+                        onAttachmentDownloadClick = vaultCommonItemTypeHandlers
+                            .onAttachmentDownloadClick,
+                        onUpgradeToPremiumClick = vaultCommonItemTypeHandlers
+                            .onUpgradeToPremiumClick,
+                        cardStyle = attachments.toListItemCardStyle(index = index),
+                    )
+                }
             }
         }
 

@@ -99,6 +99,15 @@ fun CipherView.toViewState(
                                 false
                             },
                             isDownloadAllowed = isPremiumUser || this.organizationId != null,
+                            isImageType = requireNotNull(it.fileName)
+                                .isImageAttachment(),
+                            previewState = previousState
+                                ?.common
+                                ?.attachments
+                                ?.find { prev -> prev.id == it.id }
+                                ?.previewState
+                                ?: VaultItemState.ViewState.Content.Common
+                                    .ImagePreviewState.Masked,
                         )
                     }
                 }
@@ -359,3 +368,18 @@ private val CardView.expiration: String?
     )
         .joinToString("/")
         .orNullIfBlank()
+
+/**
+ * Image file extensions supported for inline thumbnail preview.
+ */
+private val IMAGE_EXTENSIONS = setOf(
+    "png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "heif",
+)
+
+/**
+ * Returns `true` if this file name has an image extension.
+ */
+private fun String.isImageAttachment(): Boolean =
+    substringAfterLast('.', "")
+        .lowercase()
+        .let { it in IMAGE_EXTENSIONS }

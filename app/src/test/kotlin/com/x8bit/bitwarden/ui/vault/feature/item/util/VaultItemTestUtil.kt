@@ -241,6 +241,9 @@ fun createCommonContent(
                     isDownloadAllowed = isPremiumUser,
                     url = "https://example.com",
                     title = "test.mp4",
+                    isImageType = false,
+                    previewState = VaultItemState.ViewState.Content.Common
+                        .ImagePreviewState.Masked,
                 ),
             ),
             canDelete = true,

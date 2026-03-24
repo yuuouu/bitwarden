@@ -2,6 +2,8 @@
 
 package com.x8bit.bitwarden.ui.platform.feature.vaultunlocked
 
+import androidx.compose.runtime.Composable
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
@@ -59,6 +61,9 @@ import com.x8bit.bitwarden.ui.vault.feature.item.vaultItemDestination
 import com.x8bit.bitwarden.ui.vault.feature.itemlisting.vaultItemListingDestinationAsRoot
 import com.x8bit.bitwarden.ui.vault.feature.manualcodeentry.navigateToManualCodeEntryScreen
 import com.x8bit.bitwarden.ui.vault.feature.manualcodeentry.vaultManualCodeEntryDestination
+import com.x8bit.bitwarden.ui.vault.feature.media.VaultMediaViewerViewModel
+import com.x8bit.bitwarden.ui.vault.feature.media.mediaViewerDestination
+import com.x8bit.bitwarden.ui.vault.feature.media.navigateToMediaViewer
 import com.x8bit.bitwarden.ui.vault.feature.movetoorganization.navigateToVaultMoveToOrganization
 import com.x8bit.bitwarden.ui.vault.feature.movetoorganization.vaultMoveToOrganizationDestination
 import com.x8bit.bitwarden.ui.vault.feature.qrcodescan.navigateToQrCodeScanScreen
@@ -88,6 +93,12 @@ fun NavGraphBuilder.vaultUnlockedGraph(
     navigation<VaultUnlockedGraphRoute>(
         startDestination = VaultUnlockedNavbarRoute,
     ) {
+        // Scope the shared media ViewModel to the NavGraph back stack entry.
+        val getSharedMediaViewModel: @Composable () -> VaultMediaViewerViewModel = {
+            hiltViewModel(
+                navController.getBackStackEntry(VaultUnlockedGraphRoute),
+            )
+        }
         vaultItemListingDestinationAsRoot(
             onNavigateBack = { navController.popBackStack() },
             onNavigateToVaultItemScreen = { navController.navigateToVaultItem(it) },
@@ -184,6 +195,7 @@ fun NavGraphBuilder.vaultUnlockedGraph(
             onNavigateBack = { navController.popBackStack() },
         )
         vaultItemDestination(
+            getSharedMediaViewModel = getSharedMediaViewModel,
             onNavigateBack = { navController.popBackStack() },
             onNavigateToVaultEditItem = { navController.navigateToVaultAddEdit(it) },
             onNavigateToMoveToOrganization = { vaultItemId, showOnlyCollections ->
@@ -198,6 +210,16 @@ fun NavGraphBuilder.vaultUnlockedGraph(
                     passwordHistoryMode = GeneratorPasswordHistoryMode.Item(itemId = it),
                 )
             },
+            onNavigateToMediaViewer = { filePath, fileName ->
+                navController.navigateToMediaViewer(
+                    filePath = filePath,
+                    fileName = fileName,
+                )
+            },
+        )
+        mediaViewerDestination(
+            getSharedMediaViewModel = getSharedMediaViewModel,
+            onNavigateBack = { navController.popBackStack() },
         )
         vaultQrCodeScanDestination(
             onNavigateToManualCodeEntryScreen = {

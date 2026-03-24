@@ -32,6 +32,7 @@ import com.bitwarden.ui.platform.theme.BitwardenTheme
 import com.x8bit.bitwarden.ui.vault.feature.item.component.CustomField
 import com.x8bit.bitwarden.ui.vault.feature.item.component.itemHeader
 import com.x8bit.bitwarden.ui.vault.feature.item.handlers.VaultCommonItemTypeHandlers
+import com.x8bit.bitwarden.ui.vault.feature.media.MediaPreviewState
 
 /**
  * The top level content UI state for the [VaultItemScreen] when viewing a secure note cipher.
@@ -40,6 +41,7 @@ import com.x8bit.bitwarden.ui.vault.feature.item.handlers.VaultCommonItemTypeHan
 @Composable
 fun VaultItemSecureNoteContent(
     commonState: VaultItemState.ViewState.Content.Common,
+    inlineMediaStates: Map<String, MediaPreviewState>,
     vaultCommonItemTypeHandlers: VaultCommonItemTypeHandlers,
     modifier: Modifier = Modifier,
 ) {
@@ -139,18 +141,41 @@ fun VaultItemSecureNoteContent(
                 items = attachments,
                 key = { index, _ -> "attachment_$index" },
             ) { index, attachmentItem ->
-                AttachmentItemContent(
-                    modifier = Modifier
-                        .testTag("CipherAttachment")
-                        .fillMaxWidth()
-                        .standardHorizontalMargin()
-                        .animateItem(),
-                    attachmentItem = attachmentItem,
-                    onAttachmentDownloadClick = vaultCommonItemTypeHandlers
-                        .onAttachmentDownloadClick,
-                    onUpgradeToPremiumClick = vaultCommonItemTypeHandlers.onUpgradeToPremiumClick,
-                    cardStyle = attachments.toListItemCardStyle(index = index),
-                )
+                if (attachmentItem.isImageType) {
+                    val currentPreviewState = inlineMediaStates[attachmentItem.id]
+                        ?: MediaPreviewState.Masked
+                    ImageAttachmentItemContent(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .standardHorizontalMargin()
+                            .animateItem(),
+                        attachmentItem = attachmentItem,
+                        previewState = currentPreviewState,
+                        onAttachmentPreviewClick = vaultCommonItemTypeHandlers
+                            .onAttachmentPreviewClick,
+                        onAttachmentImageViewClick = vaultCommonItemTypeHandlers
+                            .onAttachmentImageViewClick,
+                        onAttachmentDownloadClick = vaultCommonItemTypeHandlers
+                            .onAttachmentDownloadClick,
+                        onUpgradeToPremiumClick = vaultCommonItemTypeHandlers
+                            .onUpgradeToPremiumClick,
+                        cardStyle = attachments.toListItemCardStyle(index = index),
+                    )
+                } else {
+                    AttachmentItemContent(
+                        modifier = Modifier
+                            .testTag("CipherAttachment")
+                            .fillMaxWidth()
+                            .standardHorizontalMargin()
+                            .animateItem(),
+                        attachmentItem = attachmentItem,
+                        onAttachmentDownloadClick = vaultCommonItemTypeHandlers
+                            .onAttachmentDownloadClick,
+                        onUpgradeToPremiumClick = vaultCommonItemTypeHandlers
+                            .onUpgradeToPremiumClick,
+                        cardStyle = attachments.toListItemCardStyle(index = index),
+                    )
+                }
             }
         }
 

@@ -79,6 +79,8 @@ class VaultItemScreenTest : BitwardenComposeTest() {
         every { stateFlow } returns mutableStateFlow
     }
 
+    private val mediaViewModel = mockk<com.x8bit.bitwarden.ui.vault.feature.media.VaultMediaViewerViewModel>(relaxed = true)
+
     @Before
     fun setUp() {
         setContent(
@@ -86,6 +88,7 @@ class VaultItemScreenTest : BitwardenComposeTest() {
         ) {
             VaultItemScreen(
                 viewModel = viewModel,
+                mediaViewModel = mediaViewModel,
                 onNavigateBack = { onNavigateBackCalled = true },
                 onNavigateToVaultAddEditItem = { onNavigateToVaultEditItemArgs = it },
                 onNavigateToMoveToOrganization = { id, _ ->
@@ -755,6 +758,9 @@ class VaultItemScreenTest : BitwardenComposeTest() {
                                 isDownloadAllowed = false,
                                 url = "https://example.com",
                                 title = "test.mp4",
+                                isImageType = false,
+                                previewState = VaultItemState.ViewState.Content.Common
+                                    .ImagePreviewState.Masked,
                             ),
                         ),
                     ),
@@ -799,6 +805,9 @@ class VaultItemScreenTest : BitwardenComposeTest() {
                                 isDownloadAllowed = true,
                                 url = "https://example.com",
                                 title = "test.mp4",
+                                isImageType = false,
+                                previewState = VaultItemState.ViewState.Content.Common
+                                    .ImagePreviewState.Masked,
                             ),
                         ),
                     ),
@@ -835,6 +844,9 @@ class VaultItemScreenTest : BitwardenComposeTest() {
             isDownloadAllowed = true,
             url = "https://example.com",
             title = "test.mp4",
+            isImageType = false,
+            previewState = VaultItemState.ViewState.Content.Common
+                .ImagePreviewState.Masked,
         )
         mutableStateFlow.update { currentState ->
             currentState.copy(
@@ -878,6 +890,9 @@ class VaultItemScreenTest : BitwardenComposeTest() {
             isDownloadAllowed = true,
             url = "https://example.com",
             title = "test.mp4",
+            isImageType = false,
+            previewState = VaultItemState.ViewState.Content.Common
+                .ImagePreviewState.Masked,
         )
         mutableStateFlow.update { currentState ->
             currentState.copy(
@@ -2039,6 +2054,71 @@ class VaultItemScreenTest : BitwardenComposeTest() {
 
         verify {
             viewModel.trySendAction(VaultItemAction.Common.PasswordHistoryClick)
+        }
+    }
+
+    @Test
+    fun `image attachment with Masked state should display privacy mask overlay`() {
+        val imageAttachment = VaultItemState.ViewState.Content.Common.AttachmentItem(
+            id = "img-mask-001",
+            displaySize = "3 MB",
+            isLargeFile = false,
+            isDownloadAllowed = true,
+            url = "https://example.com/photo.jpg",
+            title = "photo.jpg",
+            isImageType = true,
+            previewState = VaultItemState.ViewState.Content.Common
+                .ImagePreviewState.Masked,
+        )
+        mutableStateFlow.update { currentState ->
+            currentState.copy(
+                viewState = DEFAULT_LOGIN_VIEW_STATE.copy(
+                    common = DEFAULT_COMMON.copy(
+                        attachments = listOf(imageAttachment),
+                    ),
+                ),
+            )
+        }
+
+        composeTestRule
+            .onNodeWithTag("ImagePreviewMasked")
+            .assertIsDisplayed()
+    }
+
+    @Suppress("MaxLineLength")
+    @Test
+    fun `clicking Masked image attachment overlay should send AttachmentPreviewClick`() {
+        val imageAttachment = VaultItemState.ViewState.Content.Common.AttachmentItem(
+            id = "img-click-001",
+            displaySize = "3 MB",
+            isLargeFile = false,
+            isDownloadAllowed = true,
+            url = "https://example.com/photo.jpg",
+            title = "photo.jpg",
+            isImageType = true,
+            previewState = VaultItemState.ViewState.Content.Common
+                .ImagePreviewState.Masked,
+        )
+        mutableStateFlow.update { currentState ->
+            currentState.copy(
+                viewState = DEFAULT_LOGIN_VIEW_STATE.copy(
+                    common = DEFAULT_COMMON.copy(
+                        attachments = listOf(imageAttachment),
+                    ),
+                ),
+            )
+        }
+
+        composeTestRule
+            .onNodeWithTag("ImagePreviewMasked")
+            .performClick()
+
+        verify(exactly = 1) {
+            viewModel.trySendAction(
+                VaultItemAction.Common.AttachmentPreviewClick(
+                    attachmentId = "img-click-001",
+                ),
+            )
         }
     }
 
@@ -3355,6 +3435,9 @@ private val DEFAULT_COMMON: VaultItemState.ViewState.Content.Common =
                 isDownloadAllowed = true,
                 url = "https://example.com",
                 title = "test.mp4",
+                isImageType = false,
+                previewState = VaultItemState.ViewState.Content.Common
+                    .ImagePreviewState.Masked,
             ),
         ),
         canDelete = true,

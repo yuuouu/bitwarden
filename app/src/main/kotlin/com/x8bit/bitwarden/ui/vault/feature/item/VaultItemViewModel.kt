@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
+import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 
@@ -106,6 +107,8 @@ class VaultItemViewModel @Inject constructor(
         set(value) {
             savedStateHandle[KEY_TEMP_ATTACHMENT] = value
         }
+
+
 
     //region Initialization and Overrides
     init {
@@ -300,6 +303,14 @@ class VaultItemViewModel @Inject constructor(
             VaultItemAction.Common.ArchiveClick -> handleArchiveClick()
             VaultItemAction.Common.UnarchiveClick -> handleUnarchiveClick()
             VaultItemAction.Common.UpgradeToPremiumClick -> handleUpgradeToPremiumClick()
+
+            is VaultItemAction.Common.AttachmentPreviewClick -> {
+                handleAttachmentPreviewClick(action)
+            }
+
+            is VaultItemAction.Common.AttachmentImageViewClick -> {
+                handleAttachmentImageViewClick(action)
+            }
         }
     }
 
@@ -553,6 +564,49 @@ class VaultItemViewModel @Inject constructor(
             clipboardManager.setText(
                 text = notes,
                 toastDescriptorOverride = BitwardenString.notes.asText(),
+            )
+        }
+    }
+
+    private fun handleAttachmentPreviewClick(
+        action: VaultItemAction.Common.AttachmentPreviewClick,
+    ) {
+        onContent { content ->
+            val cipher = content.common.currentCipher ?: return@onContent
+
+            // Collect all image attachment IDs and file names for auto-unmask-all.
+            val allImageAttachments = content.common.attachments
+                ?.filter { it.isImageType }
+                ?.map { it.id to it.title }
+                .orEmpty()
+
+            sendEvent(
+                VaultItemEvent.RequestAttachmentPreview(
+                    cipherView = cipher,
+                    attachmentId = action.attachmentId,
+                    fileName = content.common.attachments
+                        ?.firstOrNull { it.id == action.attachmentId }
+                        ?.title
+                        .orEmpty(),
+                    allImageAttachmentIds = allImageAttachments,
+                ),
+            )
+        }
+    }
+
+    private fun handleAttachmentImageViewClick(
+        action: VaultItemAction.Common.AttachmentImageViewClick,
+    ) {
+        onContent { content ->
+            val attachment = content.common.attachments
+                ?.firstOrNull { it.id == action.attachmentId }
+                ?: return@onContent
+
+            sendEvent(
+                VaultItemEvent.NavigateToImageViewer(
+                    attachmentId = action.attachmentId,
+                    fileName = attachment.title,
+                ),
             )
         }
     }
@@ -1048,6 +1102,8 @@ class VaultItemViewModel @Inject constructor(
             is VaultItemAction.Internal.UnarchiveCipherReceive -> {
                 handleUnarchiveCipherReceive(action)
             }
+
+
         }
     }
 
@@ -1337,6 +1393,8 @@ class VaultItemViewModel @Inject constructor(
         }
     }
 
+
+
     //endregion Internal Type Handlers
 
     private fun updateDialogState(dialog: VaultItemState.DialogState?) {
@@ -1614,7 +1672,60 @@ data class VaultItemState(
                     val url: String,
                     val isLargeFile: Boolean,
                     val isDownloadAllowed: Boolean,
+                    val isImageType: Boolean,
+                    val previewState: ImagePreviewState,
                 ) : Parcelable
+
+                /**
+                 * Represents the preview state for an image-type attachment.
+                 *
+                 * The state machine flows as follows:
+                 * [Masked] → (user clicks) → [Loading] → [Revealed] or [Error]
+                 * On vault lock or ViewModel clear, [Revealed] → [Masked]
+                 */
+                // TODO: [PM-XXXXX] Remove deprecated ImagePreviewState and
+                //  AttachmentItem.previewState in follow-up PR as UI now reads
+                //  from shared mediaViewModel.
+                sealed class ImagePreviewState : Parcelable {
+
+                    /**
+                     * Initial privacy mask state.
+                     * The image is not yet decrypted.
+                     */
+                    @Parcelize
+                    data object Masked : ImagePreviewState()
+
+                    /**
+                     * The attachment is being downloaded and decrypted.
+                     */
+                    @Parcelize
+                    data object Loading : ImagePreviewState()
+
+                    /**
+                     * The image has been successfully decrypted.
+                     * Holds the path to the decrypted file in the app's
+                     * internal cache directory so Glide can load it
+                     * with downsampling (safe for files up to 100MB+).
+                     *
+                     * Note: The file path is [IgnoredOnParcel] because
+                     * the temporary file is ephemeral and should not
+                     * survive process death.
+                     */
+                    @Parcelize
+                    data class Revealed(
+                        @IgnoredOnParcel
+                        val decryptedFilePath: String? = null,
+                    ) : ImagePreviewState()
+
+                    /**
+                     * Decryption or download failed.
+                     * Falls back to the standard attachment row.
+                     */
+                    @Parcelize
+                    data class Error(
+                        val message: String? = null,
+                    ) : ImagePreviewState()
+                }
 
                 /**
                  * Represents a custom field, TextField, HiddenField, BooleanField, or LinkedField.
@@ -1979,8 +2090,34 @@ sealed class VaultItemEvent {
     ) : VaultItemEvent()
 
     /**
-     * Navigates to select a location where to save an attachment with the name [fileName].
+     * Navigates to the fullscreen media viewer.
+     *
+     * @property attachmentId The ID of the attachment (resolved by the shared VM).
+     * @property fileName The original attachment file name (used as the viewer title).
      */
+    data class NavigateToImageViewer(
+        val attachmentId: String,
+        val fileName: String,
+    ) : VaultItemEvent()
+
+    /**
+     * Requests that the shared media ViewModel decrypt and preview an attachment.
+     * This event is consumed by [VaultItemScreen] which delegates to
+     * [VaultMediaViewerViewModel.requestPreview].
+     *
+     * @property cipherView The cipher that owns the attachment.
+     * @property attachmentId The ID of the attachment to decrypt.
+     * @property fileName The original file name.
+     * @property allImageAttachmentIds All image attachment (id, fileName) pairs
+     *           for auto-unmask-all support.
+     */
+    data class RequestAttachmentPreview(
+        val cipherView: CipherView,
+        val attachmentId: String,
+        val fileName: String,
+        val allImageAttachmentIds: List<Pair<String, String>>,
+    ) : VaultItemEvent()
+
     data class NavigateToSelectAttachmentSaveLocation(
         val fileName: String,
     ) : VaultItemEvent()
@@ -2149,6 +2286,22 @@ sealed class VaultItemAction {
          * The user has clicked the password history text.
          */
         data object PasswordHistoryClick : Common()
+
+        /**
+         * The user has clicked the privacy mask on an image attachment,
+         * requesting a decrypted preview.
+         */
+        data class AttachmentPreviewClick(
+            val attachmentId: String,
+        ) : Common()
+
+        /**
+         * The user has clicked a revealed thumbnail,
+         * requesting a fullscreen image viewer.
+         */
+        data class AttachmentImageViewClick(
+            val attachmentId: String,
+        ) : Common()
     }
 
     /**
@@ -2394,6 +2547,8 @@ sealed class VaultItemAction {
             val isSaved: Boolean,
             val file: File,
         ) : Internal()
+
+
 
         /**
          * Indicates the `isIconLoadingDisabled` setting has changed.

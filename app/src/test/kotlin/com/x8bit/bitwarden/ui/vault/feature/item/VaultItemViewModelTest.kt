@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -1466,6 +1467,9 @@ class VaultItemViewModelTest : BaseViewModelTest() {
                     isDownloadAllowed = false,
                     url = "https://example.com",
                     title = "test.mp4",
+                    isImageType = false,
+                    previewState = VaultItemState.ViewState.Content.Common
+                        .ImagePreviewState.Masked,
                 )
                 val error = Throwable("Fail")
                 coEvery {
@@ -1537,6 +1541,9 @@ class VaultItemViewModelTest : BaseViewModelTest() {
                     isDownloadAllowed = false,
                     url = "https://example.com",
                     title = "test.mp4",
+                    isImageType = false,
+                    previewState = VaultItemState.ViewState.Content.Common
+                        .ImagePreviewState.Masked,
                 )
 
                 val file = mockk<File>()
@@ -1677,6 +1684,133 @@ class VaultItemViewModelTest : BaseViewModelTest() {
             )
 
             coVerify { mockFileManager.delete(file) }
+        }
+
+        @Suppress("MaxLineLength")
+        @Test
+        fun `on AttachmentPreviewClick should emit RequestAttachmentPreview with correct args`() =
+            runTest {
+                val imageAttachment = VaultItemState.ViewState.Content.Common.AttachmentItem(
+                    id = "img-att-001",
+                    displaySize = "2 MB",
+                    isLargeFile = false,
+                    isDownloadAllowed = true,
+                    url = "https://example.com/photo.jpg",
+                    title = "photo.jpg",
+                    isImageType = true,
+                    previewState = VaultItemState.ViewState.Content.Common
+                        .ImagePreviewState.Masked,
+                )
+                val imageAttachment2 = imageAttachment.copy(
+                    id = "img-att-002",
+                    title = "banner.png",
+                )
+                val nonImageAttachment = DEFAULT_COMMON.attachments!!.first()
+                val viewStateWithImageAttachments = DEFAULT_VIEW_STATE.copy(
+                    common = DEFAULT_COMMON.copy(
+                        attachments = listOf(
+                            imageAttachment,
+                            imageAttachment2,
+                            nonImageAttachment,
+                        ),
+                    ),
+                )
+                every {
+                    mockCipherView.toViewState(
+                        previousState = null,
+                        isPremiumUser = true,
+                        totpCodeItemData = null,
+                        canDelete = true,
+                        canRestore = false,
+                        canAssignToCollections = true,
+                        canEdit = true,
+                        baseIconUrl = Environment.Us.environmentUrlData.baseIconUrl,
+                        isIconLoadingDisabled = false,
+                        relatedLocations = persistentListOf(),
+                        hasOrganizations = true,
+                    )
+                } returns viewStateWithImageAttachments
+                mutableVaultItemFlow.value = DataState.Loaded(data = mockCipherView)
+                mutableAuthCodeItemFlow.value = DataState.Loaded(data = null)
+                mutableCollectionsStateFlow.value = DataState.Loaded(emptyList())
+                mutableFoldersStateFlow.value = DataState.Loaded(emptyList())
+
+                val viewModel = createViewModel(state = null)
+
+                viewModel.eventFlow.test {
+                    viewModel.trySendAction(
+                        VaultItemAction.Common.AttachmentPreviewClick(
+                            attachmentId = "img-att-001",
+                        ),
+                    )
+
+                    val event = awaitItem()
+                    assertTrue(event is VaultItemEvent.RequestAttachmentPreview)
+                    val previewEvent = event as VaultItemEvent.RequestAttachmentPreview
+                    assertEquals("img-att-001", previewEvent.attachmentId)
+                    assertEquals("photo.jpg", previewEvent.fileName)
+                    assertEquals(
+                        listOf("img-att-001" to "photo.jpg", "img-att-002" to "banner.png"),
+                        previewEvent.allImageAttachmentIds,
+                    )
+                }
+            }
+
+        @Suppress("MaxLineLength")
+        @Test
+        fun `on AttachmentImageViewClick should emit NavigateToImageViewer`() = runTest {
+            val imageAttachment = VaultItemState.ViewState.Content.Common.AttachmentItem(
+                id = "img-att-viewer",
+                displaySize = "5 MB",
+                isLargeFile = false,
+                isDownloadAllowed = true,
+                url = "https://example.com/photo.jpg",
+                title = "landscape.jpg",
+                isImageType = true,
+                previewState = VaultItemState.ViewState.Content.Common
+                    .ImagePreviewState.Masked,
+            )
+            val viewStateWithImage = DEFAULT_VIEW_STATE.copy(
+                common = DEFAULT_COMMON.copy(
+                    attachments = listOf(imageAttachment),
+                ),
+            )
+            every {
+                mockCipherView.toViewState(
+                    previousState = null,
+                    isPremiumUser = true,
+                    totpCodeItemData = null,
+                    canDelete = true,
+                    canRestore = false,
+                    canAssignToCollections = true,
+                    canEdit = true,
+                    baseIconUrl = Environment.Us.environmentUrlData.baseIconUrl,
+                    isIconLoadingDisabled = false,
+                    relatedLocations = persistentListOf(),
+                    hasOrganizations = true,
+                )
+            } returns viewStateWithImage
+            mutableVaultItemFlow.value = DataState.Loaded(data = mockCipherView)
+            mutableAuthCodeItemFlow.value = DataState.Loaded(data = null)
+            mutableCollectionsStateFlow.value = DataState.Loaded(emptyList())
+            mutableFoldersStateFlow.value = DataState.Loaded(emptyList())
+
+            val viewModel = createViewModel(state = null)
+
+            viewModel.eventFlow.test {
+                viewModel.trySendAction(
+                    VaultItemAction.Common.AttachmentImageViewClick(
+                        attachmentId = "img-att-viewer",
+                    ),
+                )
+                assertEquals(
+                    VaultItemEvent.NavigateToImageViewer(
+                        attachmentId = "img-att-viewer",
+                        fileName = "landscape.jpg",
+                    ),
+                    awaitItem(),
+                )
+            }
         }
 
         @Test
@@ -3154,6 +3288,9 @@ class VaultItemViewModelTest : BaseViewModelTest() {
                         isDownloadAllowed = true,
                         url = "https://example.com",
                         title = "test.mp4",
+                        isImageType = false,
+                        previewState = VaultItemState.ViewState.Content.Common
+                            .ImagePreviewState.Masked,
                     ),
                 ),
                 canDelete = true,

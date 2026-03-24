@@ -20,6 +20,8 @@ data class VaultCommonItemTypeHandlers(
     val onCopyNotesClick: () -> Unit,
     val onPasswordHistoryClick: () -> Unit,
     val onUpgradeToPremiumClick: () -> Unit,
+    val onAttachmentPreviewClick: (String) -> Unit,
+    val onAttachmentImageViewClick: (String) -> Unit,
 ) {
     @Suppress("UndocumentedPublicClass")
     companion object {
@@ -59,6 +61,16 @@ data class VaultCommonItemTypeHandlers(
                 },
                 onUpgradeToPremiumClick = {
                     viewModel.trySendAction(VaultItemAction.Common.UpgradeToPremiumClick)
+                },
+                onAttachmentPreviewClick = { attachmentId ->
+                    viewModel.trySendAction(
+                        VaultItemAction.Common.AttachmentPreviewClick(attachmentId),
+                    )
+                },
+                onAttachmentImageViewClick = { attachmentId ->
+                    viewModel.trySendAction(
+                        VaultItemAction.Common.AttachmentImageViewClick(attachmentId),
+                    )
                 },
             )
     }

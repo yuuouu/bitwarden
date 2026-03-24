@@ -1,5 +1,6 @@
 package com.x8bit.bitwarden.ui.vault.feature.item
 
+import androidx.compose.runtime.Composable
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -7,6 +8,7 @@ import androidx.navigation.NavOptions
 import androidx.navigation.toRoute
 import com.bitwarden.ui.platform.base.util.composableWithSlideTransitions
 import com.x8bit.bitwarden.ui.vault.feature.addedit.VaultAddEditArgs
+import com.x8bit.bitwarden.ui.vault.feature.media.VaultMediaViewerViewModel
 import com.x8bit.bitwarden.ui.vault.model.VaultItemCipherType
 import kotlinx.serialization.Serializable
 
@@ -37,21 +39,29 @@ fun SavedStateHandle.toVaultItemArgs(): VaultItemArgs {
 
 /**
  * Add the vault item screen to the nav graph.
+ *
+ * @param getSharedMediaViewModel A lambda that produces the NavGraph-scoped
+ *        [VaultMediaViewerViewModel]. This is called inside the composable
+ *        scope so that `hiltViewModel()` with a parent back stack entry works.
  */
 fun NavGraphBuilder.vaultItemDestination(
+    getSharedMediaViewModel: @Composable () -> VaultMediaViewerViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToVaultEditItem: (args: VaultAddEditArgs) -> Unit,
     onNavigateToMoveToOrganization: (vaultItemId: String, showOnlyCollections: Boolean) -> Unit,
     onNavigateToAttachments: (vaultItemId: String) -> Unit,
     onNavigateToPasswordHistory: (vaultItemId: String) -> Unit,
+    onNavigateToMediaViewer: (filePath: String, fileName: String) -> Unit = { _, _ -> },
 ) {
     composableWithSlideTransitions<VaultItemRoute> {
         VaultItemScreen(
+            mediaViewModel = getSharedMediaViewModel(),
             onNavigateBack = onNavigateBack,
             onNavigateToVaultAddEditItem = onNavigateToVaultEditItem,
             onNavigateToMoveToOrganization = onNavigateToMoveToOrganization,
             onNavigateToAttachments = onNavigateToAttachments,
             onNavigateToPasswordHistory = onNavigateToPasswordHistory,
+            onNavigateToMediaViewer = onNavigateToMediaViewer,
         )
     }
 }
