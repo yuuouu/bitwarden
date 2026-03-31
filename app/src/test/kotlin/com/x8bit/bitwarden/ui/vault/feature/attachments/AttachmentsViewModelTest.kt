@@ -27,6 +27,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+@Suppress("LargeClass")
 class AttachmentsViewModelTest : BaseViewModelTest() {
     private val mutableUserStateFlow = MutableStateFlow<UserState?>(DEFAULT_USER_STATE)
     private val authRepository: AuthRepository = mockk {
@@ -82,6 +84,24 @@ class AttachmentsViewModelTest : BaseViewModelTest() {
         viewModel.eventFlow.test {
             viewModel.trySendAction(AttachmentsAction.BackClick)
             assertEquals(AttachmentsEvent.NavigateBack, awaitItem())
+        }
+    }
+
+    @Test
+    fun `ItemClick should emit NavigateToPreview`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.eventFlow.test {
+            viewModel.trySendAction(
+                AttachmentsAction.ItemClick(attachment = DEFAULT_ATTACHMENT_ITEM),
+            )
+            assertEquals(
+                AttachmentsEvent.NavigateToPreview(
+                    cipherId = DEFAULT_STATE.cipherId,
+                    attachmentId = DEFAULT_ATTACHMENT_ITEM.id,
+                    fileName = DEFAULT_ATTACHMENT_ITEM.title,
+                ),
+                awaitItem(),
+            )
         }
     }
 
@@ -721,16 +741,17 @@ private val DEFAULT_STATE: AttachmentsState = AttachmentsState(
     isPremiumUser = true,
 )
 
+private val DEFAULT_ATTACHMENT_ITEM: AttachmentsState.AttachmentItem =
+    AttachmentsState.AttachmentItem(
+        id = "mockId-1",
+        title = "mockFileName-1",
+        displaySize = "mockSizeName-1",
+    )
+
 private val DEFAULT_CONTENT_WITH_ATTACHMENTS: AttachmentsState.ViewState.Content =
     AttachmentsState.ViewState.Content(
         originalCipher = createMockCipherView(number = 1),
-        attachments = listOf(
-            AttachmentsState.AttachmentItem(
-                id = "mockId-1",
-                title = "mockFileName-1",
-                displaySize = "mockSizeName-1",
-            ),
-        ),
+        attachments = persistentListOf(DEFAULT_ATTACHMENT_ITEM),
         newAttachment = null,
     )
 

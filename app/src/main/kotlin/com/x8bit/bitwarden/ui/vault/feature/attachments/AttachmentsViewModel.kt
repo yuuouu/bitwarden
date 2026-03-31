@@ -20,6 +20,7 @@ import com.x8bit.bitwarden.data.vault.repository.model.CreateAttachmentResult
 import com.x8bit.bitwarden.data.vault.repository.model.DeleteAttachmentResult
 import com.x8bit.bitwarden.ui.vault.feature.attachments.util.toViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -84,6 +85,7 @@ class AttachmentsViewModel @Inject constructor(
             AttachmentsAction.ChooseFileClick -> handleChooseFileClick()
             is AttachmentsAction.FileChoose -> handleFileChoose(action)
             is AttachmentsAction.DeleteClick -> handleDeleteClick(action)
+            is AttachmentsAction.ItemClick -> handleItemClick(action)
             is AttachmentsAction.Internal -> handleInternalAction(action)
         }
     }
@@ -190,6 +192,16 @@ class AttachmentsViewModel @Inject constructor(
                 sendAction(AttachmentsAction.Internal.DeleteResultReceive(result))
             }
         }
+    }
+
+    private fun handleItemClick(action: AttachmentsAction.ItemClick) {
+        sendEvent(
+            AttachmentsEvent.NavigateToPreview(
+                cipherId = state.cipherId,
+                attachmentId = action.attachment.id,
+                fileName = action.attachment.title,
+            ),
+        )
     }
 
     private fun handleInternalAction(action: AttachmentsAction.Internal) {
@@ -378,7 +390,7 @@ data class AttachmentsState(
         data class Content(
             @IgnoredOnParcel
             val originalCipher: CipherView? = null,
-            val attachments: List<AttachmentItem>,
+            val attachments: ImmutableList<AttachmentItem>,
             val newAttachment: NewAttachment?,
         ) : ViewState()
     }
@@ -435,6 +447,15 @@ sealed class AttachmentsEvent {
      * Navigates back.
      */
     data object NavigateBack : AttachmentsEvent()
+
+    /**
+     * Navigates to preview the attachment.
+     */
+    data class NavigateToPreview(
+        val cipherId: String,
+        val attachmentId: String,
+        val fileName: String,
+    ) : AttachmentsEvent()
 
     /**
      * Show chooser sheet.
@@ -495,10 +516,17 @@ sealed class AttachmentsAction {
     ) : AttachmentsAction()
 
     /**
-     * User clicked delete an attachment.
+     * User clicked delete on an attachment.
      */
     data class DeleteClick(
         val attachmentId: String,
+    ) : AttachmentsAction()
+
+    /**
+     * User clicked on an attachment.
+     */
+    data class ItemClick(
+        val attachment: AttachmentsState.AttachmentItem,
     ) : AttachmentsAction()
 
     /**

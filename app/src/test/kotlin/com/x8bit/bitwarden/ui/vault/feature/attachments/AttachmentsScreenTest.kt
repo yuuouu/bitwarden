@@ -24,6 +24,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.Assert.assertTrue
@@ -32,6 +33,7 @@ import org.junit.Test
 
 class AttachmentsScreenTest : BitwardenComposeTest() {
     private var onNavigateBackCalled = false
+    private var onNavigateToPreviewCalled = false
 
     private val mutableStateFlow = MutableStateFlow(DEFAULT_STATE)
     private val mutableEventFlow = bufferedMutableSharedFlow<AttachmentsEvent>()
@@ -50,6 +52,7 @@ class AttachmentsScreenTest : BitwardenComposeTest() {
             AttachmentsScreen(
                 viewModel = viewModel,
                 onNavigateBack = { onNavigateBackCalled = true },
+                onNavigateToPreview = { _, _, _ -> onNavigateToPreviewCalled = true },
             )
         }
     }
@@ -58,6 +61,18 @@ class AttachmentsScreenTest : BitwardenComposeTest() {
     fun `NavigateBack should call onNavigateBack`() {
         mutableEventFlow.tryEmit(AttachmentsEvent.NavigateBack)
         assertTrue(onNavigateBackCalled)
+    }
+
+    @Test
+    fun `NavigateToPreview should call onNavigateToPreview`() {
+        mutableEventFlow.tryEmit(
+            AttachmentsEvent.NavigateToPreview(
+                cipherId = "cipherId",
+                attachmentId = "attachmentId",
+                fileName = "file.png",
+            ),
+        )
+        assertTrue(onNavigateToPreviewCalled)
     }
 
     @Test
@@ -250,14 +265,14 @@ private val DEFAULT_STATE: AttachmentsState = AttachmentsState(
 private val DEFAULT_CONTENT_WITHOUT_ATTACHMENTS: AttachmentsState.ViewState.Content =
     AttachmentsState.ViewState.Content(
         originalCipher = createMockCipherView(number = 1),
-        attachments = emptyList(),
+        attachments = persistentListOf(),
         newAttachment = null,
     )
 
 private val DEFAULT_CONTENT_WITH_ATTACHMENTS: AttachmentsState.ViewState.Content =
     AttachmentsState.ViewState.Content(
         originalCipher = createMockCipherView(number = 1),
-        attachments = listOf(
+        attachments = persistentListOf(
             AttachmentsState.AttachmentItem(
                 id = "cipherId-1234",
                 title = "cool_file.png",
